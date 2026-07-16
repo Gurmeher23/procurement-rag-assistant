@@ -1,0 +1,5 @@
+{"question": "What are Nordwind's payment terms?", "expected_source": "nordwind_contract.txt", "must_contain": ["Net 30"]}
+{"question": "What are the Incoterms for Suedbahn Logistik?", "expected_source": "suedbahn_contract.txt", "must_contain": ["FCA"]}
+{"question": "When is a price deviation flagged as an exception?", "expected_source": "purchasing_policy.md", "must_contain": ["2%"]}
+{"question": "What is the late-delivery penalty for Suedbahn?", "expected_source": "suedbahn_contract.txt", "must_contain": ["1.5%"]}
+{"question": "How many approvers are needed for a large purchase order?", "expected_source": "purchasing_policy.md", "must_contain": ["two"]}

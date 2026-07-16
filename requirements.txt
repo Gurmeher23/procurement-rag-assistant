@@ -1,3 +1,8 @@
-sentence-transformers>=2.7
 numpy>=1.26
-langchain-openai>=0.1
+# Real embedding + rerank path (optional; offline hashing fallback otherwise):
+sentence-transformers>=2.7
+faiss-cpu>=1.8            # optional; numpy fallback if absent
+langchain-openai>=0.1    # LLM answer generation
+typer>=0.12              # CLI
+pypdf>=4.0               # optional PDF loading
+pytest>=8.0

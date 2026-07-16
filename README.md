@@ -1,38 +1,65 @@
 # Procurement RAG Assistant
 
-A retrieval-augmented (RAG) assistant that answers plain-language questions over
-procurement documents — vendor contracts, framework agreements, purchasing
-policy — and grounds every answer in the retrieved text with a source citation.
+A retrieval-augmented assistant over procurement documents (vendor contracts,
+framework agreements, purchasing policy) that answers plain-language questions
+grounded strictly in retrieved text, with source citations — plus an eval
+harness to measure retrieval quality.
 
-This is the "document understanding" layer of an ERP-automation stack: turning
-unstructured business documents into answerable, cited knowledge instead of
-manual lookups.
+Built as a package with a **hybrid retriever** (dense embeddings fused with
+sparse BM25) and an optional cross-encoder reranker, so exact-term matches
+(payment-term numbers, vendor IDs) aren't lost by pure vector search.
 
-## How it works
+## Architecture
 
-1. **Chunk** each document into ~120-word passages.
-2. **Embed** them locally with `sentence-transformers` (all-MiniLM-L6-v2), so
-   indexing runs offline.
-3. **Retrieve** the top-k passages for a question via cosine similarity.
-4. **Answer** with an LLM constrained to the retrieved context, citing the
-   source file. If the answer isn't in context, it says so instead of guessing.
+```
+rag/
+├── config.py       # env-overridable config (weights, top-k, models)
+├── loaders.py      # .txt / .md / .pdf loaders
+├── chunking.py     # sentence-aware chunking with overlap
+├── embeddings.py   # sentence-transformers + offline hashing fallback
+├── vectorstore.py  # FAISS backend + numpy fallback, save/load
+├── retriever.py    # BM25 (implemented here) + hybrid fusion + reranker
+├── pipeline.py     # ingest → retrieve → grounded, cited answer
+└── cli.py          # Typer CLI
+eval/
+├── questions.jsonl # labelled Q → expected source + keywords
+└── run_eval.py     # source hit@k + keyword recall
+```
 
-The index here is a tiny in-memory matrix — swap in **FAISS** or **Chroma** for
-larger corpora without changing the interface.
+## Retrieval
+
+1. **Dense** — cosine similarity over embeddings (sentence-transformers, or a
+   deterministic char-n-gram hashing fallback so it runs with zero downloads).
+2. **Sparse** — BM25 over tokenized chunks.
+3. **Fusion** — min-max normalize each score, combine with configurable weights.
+4. **Rerank** *(optional)* — cross-encoder over the top candidates.
 
 ## Run
 
 ```bash
 pip install -r requirements.txt
+
+# Query (offline hashing embedder + BM25 works with no key/model):
+python -m rag.cli "What are Nordwind's payment terms?" --docs data --top-k 3
+
+# Grounded answer generation:
 export OPENAI_API_KEY=sk-...
-python main.py "What is the payment term for Nordwind Components?"
+
+# Better embeddings / reranking:
+#   installs sentence-transformers; set RAG_USE_RERANKER=1 to enable rerank
+
+# Evaluate retrieval:
+python -m eval.run_eval        # → source_hit@k, keyword_recall
+
+# Tests:
+pytest -q
 ```
 
-Retrieval works without a key (you'll see the ranked passages); the key is only
-needed for the final grounded answer.
+On the bundled corpus the hybrid retriever scores **hit@k 1.0** and
+**keyword recall 1.0** even with the offline embedder.
 
-## Example questions
+## Extend
 
-- "What is the payment term for Nordwind Components?"
-- "When do price deviations get flagged as an exception?"
-- "What are the Incoterms for Suedbahn Logistik?"
+- Point `loaders` at a folder of real PDFs (pypdf path is already wired).
+- Swap the numpy store for `faiss-cpu` (drop-in) as the corpus grows.
+- Add answer-faithfulness scoring to the eval harness.
